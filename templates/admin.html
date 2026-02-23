@@ -1,14 +1,65 @@
-<h2>後台資料</h2>
-<table border="1">
-<tr>
-<th>ID</th><th>Name</th><th>Department</th><th>Age</th>
-<th>Future</th><th>Emotion</th><th>Time</th>
-</tr>
-{% for row in data %}
-<tr>
-{% for item in row %}
-<td>{{ item }}</td>
-{% endfor %}
-</tr>
-{% endfor %}
-</table>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <title>Admin</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Arial; padding: 24px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; }
+    th { background: #f6f6f6; text-align: left; }
+    .card { border: 1px solid #eee; padding: 12px; border-radius: 10px; margin: 12px 0; }
+    .muted { color: #666; }
+  </style>
+</head>
+<body>
+  <h2>後台</h2>
+  <p class="muted">需要帳密（瀏覽器會跳出登入框）。</p>
+
+  <div class="card">
+    <div><b>總筆數：</b>{{ total }}</div>
+  </div>
+
+  <div class="card">
+    <h3>Department 統計</h3>
+    {% if dept_counts and dept_counts|length > 0 %}
+      <table>
+        <tr><th>Department</th><th>Count</th></tr>
+        {% for row in dept_counts %}
+          <tr>
+            <td>{{ row["department"] }}</td>
+            <td>{{ row["cnt"] }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <div class="muted">目前沒有資料</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>最近 20 筆</h3>
+    {% if recent and recent|length > 0 %}
+      <table>
+        <tr>
+          <th>ID</th><th>Name</th><th>Department</th><th>Age</th>
+          <th>Future</th><th>Emotion</th><th>Time</th>
+        </tr>
+        {% for r in recent %}
+          <tr>
+            <td>{{ r["id"] }}</td>
+            <td>{{ r["name"] }}</td>
+            <td>{{ r["department"] }}</td>
+            <td>{{ r["age"] }}</td>
+            <td>{{ r["future"] }}</td>
+            <td>{{ r["emotion"] }}</td>
+            <td>{{ r["created_at"] }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <div class="muted">目前沒有資料</div>
+    {% endif %}
+  </div>
+</body>
+</html>
