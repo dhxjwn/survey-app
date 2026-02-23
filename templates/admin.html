@@ -21,45 +21,41 @@
   </div>
 
   <div class="card">
-    <h3>Department 統計</h3>
-    {% if dept_counts and dept_counts|length > 0 %}
-      <table>
-        <tr><th>Department</th><th>Count</th></tr>
-        {% for row in dept_counts %}
-          <tr>
-            <td>{{ row["department"] }}</td>
-            <td>{{ row["cnt"] }}</td>
-          </tr>
-        {% endfor %}
-      </table>
-    {% else %}
-      <div class="muted">目前沒有資料</div>
-    {% endif %}
+    <h2>Department 統計</h2>
+{% if dept_stats and dept_stats|length > 0 %}
+<table border="1" cellpadding="6">
+  <tr><th>Department</th><th>Count</th></tr>
+  {% for x in dept_stats %}
+  <tr><td>{{ x.department }}</td><td>{{ x.count }}</td></tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>目前沒有資料</p>
+{% endif %}
   </div>
 
   <div class="card">
-    <h3>最近 20 筆</h3>
-    {% if recent and recent|length > 0 %}
-      <table>
-        <tr>
-          <th>ID</th><th>Name</th><th>Department</th><th>Age</th>
-          <th>Future</th><th>Emotion</th><th>Time</th>
-        </tr>
-        {% for r in recent %}
-          <tr>
-            <td>{{ r["id"] }}</td>
-            <td>{{ r["name"] }}</td>
-            <td>{{ r["department"] }}</td>
-            <td>{{ r["age"] }}</td>
-            <td>{{ r["future"] }}</td>
-            <td>{{ r["emotion"] }}</td>
-            <td>{{ r["created_at"] }}</td>
-          </tr>
-        {% endfor %}
-      </table>
-    {% else %}
-      <div class="muted">目前沒有資料</div>
-    {% endif %}
+  <h2>最近 20 筆</h2>
+{% if rows and rows|length > 0 %}
+<table border="1" cellpadding="6">
+  <tr>
+    <th>ID</th><th>Name</th><th>Department</th><th>Age</th><th>Future</th><th>Emotion</th><th>Time</th>
+  </tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.id }}</td>
+    <td>{{ r.name }}</td>
+    <td>{{ r.department }}</td>
+    <td>{{ r.age }}</td>
+    <td>{{ r.future }}</td>
+    <td>{{ r.emotion }}</td>
+    <td>{{ r.time }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>目前沒有資料</p>
+{% endif %}
   </div>
 </body>
 </html>

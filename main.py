@@ -1,3 +1,4 @@
+from sqlalchemy import func
 import os
 import secrets
 from datetime import datetime
@@ -85,27 +86,38 @@ def success(request: Request):
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin(request: Request):
-    # ✅ Basic Auth 保護
-    if not basic_auth_ok(request):
-        # 這個 header 會讓瀏覽器跳出帳密視窗
-        return HTMLResponse(
-            content='{"detail":"Unauthorized"}',
-            status_code=401,
-            headers={"WWW-Authenticate": 'Basic realm="admin"'},
-        )
-
     db = SessionLocal()
     try:
-        total = db.query(Survey).count()  # ✅ 真正總筆數
-        rows = db.query(Survey).order_by(Survey.id.desc()).limit(20).all()
+        total = db.query(func.count(Survey.id)).scalar() or 0
+
+        rows = (
+            db.query(Survey)
+            .order_by(Survey.id.desc())
+            .limit(20)
+            .all()
+        )
+
+        dept_stats = (
+            db.query(Survey.department, func.count(Survey.id))
+            .group_by(Survey.department)
+            .order_by(func.count(Survey.id).desc())
+            .all()
+        )
+        # 轉成 template 好用的格式
+        dept_stats = [{"department": d, "count": c} for d, c in dept_stats]
+
     finally:
         db.close()
 
     return templates.TemplateResponse(
         "admin.html",
-        {"request": request, "rows": rows, "total": total},
+        {
+            "request": request,
+            "total": total,
+            "rows": rows,
+            "dept_stats": dept_stats,
+        },
     )
-
 
 # （可選）健康檢查：Render/你自己測試用
 @app.get("/healthz")
