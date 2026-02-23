@@ -1,0 +1,14 @@
+<h2>後台資料</h2>
+<table border="1">
+<tr>
+<th>ID</th><th>Name</th><th>Department</th><th>Age</th>
+<th>Future</th><th>Emotion</th><th>Time</th>
+</tr>
+{% for row in data %}
+<tr>
+{% for item in row %}
+<td>{{ item }}</td>
+{% endfor %}
+</tr>
+{% endfor %}
+</table>

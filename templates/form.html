@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>職涯調查</title>
+</head>
+<body>
+
+<h2>大學生職涯發展調查</h2>
+
+<form action="/submit" method="post">
+
+姓名: <input type="text" name="name" required><br><br>
+系級: <input type="text" name="department" required><br><br>
+年齡: <input type="number" name="age" required><br><br>
+
+未來狀態:
+<select name="future_state">
+<option>目標明確</option>
+<option>有方向但不知道怎麼開始</option>
+<option>焦慮想逃避</option>
+<option>走一步算一步</option>
+</select><br><br>
+
+是否影響情緒:
+<select name="emotion_impact">
+<option>經常</option>
+<option>有時</option>
+<option>幾乎不會</option>
+</select><br><br>
+
+<button type="submit">送出</button>
+
+</form>
+
+</body>
+</html>
