@@ -1,147 +1,113 @@
-from __future__ import annotations
-
 import os
-import sqlite3
-from datetime import datetime
-from typing import Optional
-
-from fastapi import FastAPI, Request, Form, Depends, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(APP_DIR, "database.db")
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+
+from db import SessionLocal, engine, Base
+from models import Survey
 
 app = FastAPI()
-templates = Jinja2Templates(directory=os.path.join(APP_DIR, "templates"))
+templates = Jinja2Templates(directory="templates")
 
-security = HTTPBasic()
+# ✅ 啟動時自動建表（Postgres/SQLite 都可）
+Base.metadata.create_all(bind=engine)
 
+def now_tw():
+    return datetime.now(ZoneInfo("Asia/Taipei"))
 
-# -------- DB helpers --------
-def get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+def basic_auth_ok(request: Request) -> bool:
+    """
+    Basic Auth: 用 Render 環境變數 ADMIN_USER / ADMIN_PASS 控制
+    """
+    admin_user = os.getenv("ADMIN_USER")
+    admin_pass = os.getenv("ADMIN_PASS")
 
-
-def init_db() -> None:
-    with get_conn() as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS survey (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                department TEXT NOT NULL,
-                age INTEGER NOT NULL,
-                future TEXT NOT NULL,
-                emotion TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            )
-            """
-        )
-        conn.commit()
-
-
-@app.on_event("startup")
-def on_startup():
-    init_db()
-
-
-# -------- Auth (Admin) --------
-def require_admin(credentials: HTTPBasicCredentials = Depends(security)) -> bool:
-    admin_user = os.getenv("ADMIN_USER", "")
-    admin_pass = os.getenv("ADMIN_PASS", "")
-
-    # 沒設定就不放行（避免你忘了設，結果 admin 裸奔）
+    # 沒設定就直接擋，避免 /admin 裸奔
     if not admin_user or not admin_pass:
-        raise HTTPException(status_code=500, detail="ADMIN_USER/ADMIN_PASS not set")
+        return False
 
-    ok_user = secrets.compare_digest(credentials.username, admin_user)
-    ok_pass = secrets.compare_digest(credentials.password, admin_pass)
+    auth = request.headers.get("authorization") or ""
+    if not auth.lower().startswith("basic "):
+        return False
 
-    if not (ok_user and ok_pass):
-        raise HTTPException(
-            status_code=401,
-            detail="Unauthorized",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-    return True
+    import base64
+    try:
+        b64 = auth.split(" ", 1)[1].strip()
+        decoded = base64.b64decode(b64).decode("utf-8")
+        user, pw = decoded.split(":", 1)
+    except Exception:
+        return False
+
+    # 用 secrets.compare_digest 避免簡單 timing attack
+    return secrets.compare_digest(user, admin_user) and secrets.compare_digest(pw, admin_pass)
 
 
-# -------- Routes --------
 @app.get("/", response_class=HTMLResponse)
 @app.get("/form", response_class=HTMLResponse)
-def form_page(request: Request):
+def form(request: Request):
     return templates.TemplateResponse("form.html", {"request": request})
 
 
 @app.post("/submit")
 def submit(
-    request: Request,
     name: str = Form(...),
     department: str = Form(...),
     age: int = Form(...),
     future: str = Form(...),
     emotion: str = Form(...),
 ):
-    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    with get_conn() as conn:
-        conn.execute(
-            """
-            INSERT INTO survey (name, department, age, future, emotion, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (name, department, age, future, emotion, created_at),
+    db = SessionLocal()
+    try:
+        row = Survey(
+            name=name,
+            department=department,
+            age=age,
+            future=future,
+            emotion=emotion,
+            time=now_tw(),  # ✅ 時間用台灣時區
         )
-        conn.commit()
+        db.add(row)
+        db.commit()
+    finally:
+        db.close()
 
     return RedirectResponse(url="/success", status_code=303)
 
 
 @app.get("/success", response_class=HTMLResponse)
-def success_page(request: Request):
+def success(request: Request):
     return templates.TemplateResponse("success.html", {"request": request})
 
 
 @app.get("/admin", response_class=HTMLResponse)
-def admin_page(request: Request, _ok: bool = Depends(require_admin)):
-    with get_conn() as conn:
-        total = conn.execute("SELECT COUNT(*) AS c FROM survey").fetchone()["c"]
+def admin(request: Request):
+    # ✅ Basic Auth 保護
+    if not basic_auth_ok(request):
+        # 這個 header 會讓瀏覽器跳出帳密視窗
+        return HTMLResponse(
+            content='{"detail":"Unauthorized"}',
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="admin"'},
+        )
 
-        dept_counts = conn.execute(
-            """
-            SELECT department, COUNT(*) AS cnt
-            FROM survey
-            GROUP BY department
-            ORDER BY cnt DESC, department ASC
-            """
-        ).fetchall()
-
-        recent = conn.execute(
-            """
-            SELECT id, name, department, age, future, emotion, created_at
-            FROM survey
-            ORDER BY id DESC
-            LIMIT 20
-            """
-        ).fetchall()
+    db = SessionLocal()
+    try:
+        total = db.query(Survey).count()  # ✅ 真正總筆數
+        rows = db.query(Survey).order_by(Survey.id.desc()).limit(20).all()
+    finally:
+        db.close()
 
     return templates.TemplateResponse(
         "admin.html",
-        {
-            "request": request,
-            "total": total,
-            "dept_counts": dept_counts,
-            "recent": recent,
-        },
+        {"request": request, "rows": rows, "total": total},
     )
 
 
-# Render health check friendly
+# （可選）健康檢查：Render/你自己測試用
 @app.get("/healthz")
 def healthz():
     return {"ok": True}
