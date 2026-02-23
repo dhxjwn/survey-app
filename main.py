@@ -1,120 +1,147 @@
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
+from __future__ import annotations
+
+import os
+import sqlite3
+from datetime import datetime
+from typing import Optional
+
+from fastapi import FastAPI, Request, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-import sqlite3
-import os
 import secrets
-from datetime import datetime
+
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(APP_DIR, "database.db")
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
-
-# =========================
-# 資料庫設定
-# =========================
-
-DB_PATH = os.environ.get("DB_PATH", "database.db")
-
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS responses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            department TEXT,
-            age INTEGER,
-            future_state TEXT,
-            emotion_impact TEXT,
-            created_at TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# =========================
-# Admin Basic Auth 設定
-# =========================
+templates = Jinja2Templates(directory=os.path.join(APP_DIR, "templates"))
 
 security = HTTPBasic()
 
-ADMIN_USER = "admin"
-ADMIN_PASS = "12345"  # ⚠️ 部署前記得改密碼
 
-def require_admin(credentials: HTTPBasicCredentials = Depends(security)):
-    correct_user = secrets.compare_digest(credentials.username, ADMIN_USER)
-    correct_pass = secrets.compare_digest(credentials.password, ADMIN_PASS)
+# -------- DB helpers --------
+def get_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-    if not (correct_user and correct_pass):
+
+def init_db() -> None:
+    with get_conn() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS survey (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                department TEXT NOT NULL,
+                age INTEGER NOT NULL,
+                future TEXT NOT NULL,
+                emotion TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.commit()
+
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
+
+# -------- Auth (Admin) --------
+def require_admin(credentials: HTTPBasicCredentials = Depends(security)) -> bool:
+    admin_user = os.getenv("ADMIN_USER", "")
+    admin_pass = os.getenv("ADMIN_PASS", "")
+
+    # 沒設定就不放行（避免你忘了設，結果 admin 裸奔）
+    if not admin_user or not admin_pass:
+        raise HTTPException(status_code=500, detail="ADMIN_USER/ADMIN_PASS not set")
+
+    ok_user = secrets.compare_digest(credentials.username, admin_user)
+    ok_pass = secrets.compare_digest(credentials.password, admin_pass)
+
+    if not (ok_user and ok_pass):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=401,
             detail="Unauthorized",
             headers={"WWW-Authenticate": "Basic"},
         )
     return True
 
-# =========================
-# 前台問卷頁
-# =========================
 
+# -------- Routes --------
 @app.get("/", response_class=HTMLResponse)
-def form(request: Request):
+@app.get("/form", response_class=HTMLResponse)
+def form_page(request: Request):
     return templates.TemplateResponse("form.html", {"request": request})
 
-# =========================
-# 提交表單
-# =========================
 
 @app.post("/submit")
 def submit(
+    request: Request,
     name: str = Form(...),
     department: str = Form(...),
     age: int = Form(...),
-    future_state: str = Form(...),
-    emotion_impact: str = Form(...)
+    future: str = Form(...),
+    emotion: str = Form(...),
 ):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    c.execute("""
-        INSERT INTO responses
-        (name, department, age, future_state, emotion_impact, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (
-        name,
-        department,
-        age,
-        future_state,
-        emotion_impact,
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    ))
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO survey (name, department, age, future, emotion, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (name, department, age, future, emotion, created_at),
+        )
+        conn.commit()
 
-    conn.commit()
-    conn.close()
+    return RedirectResponse(url="/success", status_code=303)
 
-    return RedirectResponse("/success", status_code=303)
-
-# =========================
-# 成功頁
-# =========================
 
 @app.get("/success", response_class=HTMLResponse)
-def success(request: Request):
+def success_page(request: Request):
     return templates.TemplateResponse("success.html", {"request": request})
 
-# =========================
-# 後台管理頁（有密碼）
-# =========================
 
 @app.get("/admin", response_class=HTMLResponse)
-def admin(request: Request, _: bool = Depends(require_admin)):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT * FROM responses ORDER BY created_at DESC")
-    data = c.fetchall()
-    conn.close()
+def admin_page(request: Request, _ok: bool = Depends(require_admin)):
+    with get_conn() as conn:
+        total = conn.execute("SELECT COUNT(*) AS c FROM survey").fetchone()["c"]
 
-    return templates.TemplateResponse("admin.html", {"request": request, "data": data})
+        dept_counts = conn.execute(
+            """
+            SELECT department, COUNT(*) AS cnt
+            FROM survey
+            GROUP BY department
+            ORDER BY cnt DESC, department ASC
+            """
+        ).fetchall()
+
+        recent = conn.execute(
+            """
+            SELECT id, name, department, age, future, emotion, created_at
+            FROM survey
+            ORDER BY id DESC
+            LIMIT 20
+            """
+        ).fetchall()
+
+    return templates.TemplateResponse(
+        "admin.html",
+        {
+            "request": request,
+            "total": total,
+            "dept_counts": dept_counts,
+            "recent": recent,
+        },
+    )
+
+
+# Render health check friendly
+@app.get("/healthz")
+def healthz():
+    return {"ok": True}
