@@ -2,31 +2,70 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>職涯調查</title>
+<title>大學生職涯發展痛點調查</title>
 </head>
 <body>
 
-<h2>大學生職涯發展調查</h2>
+<h2>大學生職涯發展痛點調查</h2>
 
 <form method="post" action="/submit">
 
-姓名: <input type="text" name="name" required><br><br>
-系級: <input type="text" name="department" required><br><br>
-年齡: <input type="number" name="age" required><br><br>
+姓名：<input type="text" name="name" required><br><br>
+系級：<input type="text" name="department" required><br><br>
+年齡：<input type="number" name="age" required><br><br>
 
-未來狀態:
-<select name="future">
-<option>目標明確</option>
-<option>有方向但不知道怎麼開始</option>
-<option>焦慮想逃避</option>
-<option>走一步算一步</option>
+<hr>
+
+<b>1. 關於未來的想像，你目前的狀態最接近哪一項？</b><br>
+<select name="q1_future_state" required>
+<option value="目標明確，且正在執行具體計畫">目標明確，且正在執行具體計畫</option>
+<option value="有大致方向，但不知道從何開始第一步">有大致方向，但不知道從何開始第一步</option>
+<option value="看著大家都在努力，感到集體焦慮，想逃避">看著大家都在努力，感到集體焦慮，想逃避</option>
+<option value="完全沒有想法，走一步算一步">完全沒有想法，走一步算一步</option>
 </select><br><br>
 
-是否影響情緒:
-<select name="emotion">
-<option>經常</option>
-<option>有時</option>
-<option>幾乎不會</option>
+<b>2. 是否曾因職涯問題影響情緒？</b><br>
+<select name="q2_emotion_impact" required>
+<option value="經常如此">經常如此</option>
+<option value="有時會">有時會</option>
+<option value="幾乎不會">幾乎不會</option>
+</select><br><br>
+
+<b>3. 規劃職涯最大阻礙（最多選 3 項）</b><br>
+<label><input type="checkbox" name="q3_obstacles" value="資訊過載"> 資訊過載</label><br>
+<label><input type="checkbox" name="q3_obstacles" value="自我認知不足"> 自我認知不足</label><br>
+<label><input type="checkbox" name="q3_obstacles" value="實踐門檻"> 實踐門檻</label><br>
+<label><input type="checkbox" name="q3_obstacles" value="科系束縛"> 科系束縛</label><br>
+<label><input type="checkbox" name="q3_obstacles" value="人際壓力"> 人際壓力</label><br>
+<label><input type="checkbox" name="q3_obstacles" value="軟實力缺乏"> 軟實力缺乏</label><br><br>
+
+<b>4. 你最希望解決什麼？</b><br>
+<select name="q4_solution" required>
+<option value="工具型">精準分析適合職業</option>
+<option value="陪伴型">一對一經驗分享</option>
+<option value="結果型">媒合高品質實習</option>
+<option value="心理型">處理焦慮感</option>
+</select><br><br>
+
+<b>5. 焦慮時會怎麼做？</b><br>
+<select name="q5_help_channel" required>
+<option value="Threads/Dcard">Threads / Dcard</option>
+<option value="朋友學長姐">朋友或學長姐</option>
+<option value="AI工具">使用 AI 工具</option>
+<option value="職輔中心">學校職輔中心</option>
+<option value="自己悶著">自己悶著</option>
+</select><br><br>
+
+<b>6. 是否因害怕表現不好而放棄機會？</b><br>
+<label><input type="radio" name="q6_avoid" value="是" required> 是</label>
+<label><input type="radio" name="q6_avoid" value="否" required> 否</label><br><br>
+
+<b>7. 理想的職涯輔導方式？</b><br>
+<select name="q7_prefer" required>
+<option value="低強度互動">低強度互動</option>
+<option value="系統化SOP">系統化引導</option>
+<option value="實戰導向">實戰導向</option>
+<option value="溫暖陪伴">溫暖陪伴</option>
 </select><br><br>
 
 <button type="submit">送出</button>

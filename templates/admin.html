@@ -35,11 +35,13 @@
   </div>
 
   <div class="card">
-  <h2>最近 20 筆</h2>
+<h2>最近 20 筆</h2>
 {% if rows and rows|length > 0 %}
 <table border="1" cellpadding="6">
   <tr>
-    <th>ID</th><th>Name</th><th>Department</th><th>Age</th><th>Future</th><th>Emotion</th><th>Time</th>
+    <th>ID</th><th>Name</th><th>Department</th><th>Age</th>
+    <th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Q5</th><th>Q6</th><th>Q7</th>
+    <th>Time</th>
   </tr>
   {% for r in rows %}
   <tr>
@@ -47,8 +49,13 @@
     <td>{{ r.name }}</td>
     <td>{{ r.department }}</td>
     <td>{{ r.age }}</td>
-    <td>{{ r.future }}</td>
-    <td>{{ r.emotion }}</td>
+    <td>{{ r.q1_future_state }}</td>
+    <td>{{ r.q2_emotion_impact }}</td>
+    <td>{{ r.q3_obstacles }}</td>
+    <td>{{ r.q4_solution }}</td>
+    <td>{{ r.q5_help_channel }}</td>
+    <td>{{ r.q6_avoid }}</td>
+    <td>{{ r.q7_prefer }}</td>
     <td>{{ r.time }}</td>
   </tr>
   {% endfor %}

@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from db import SessionLocal, engine, Base
-from models import Survey
+from models import SurveyV2
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -58,18 +58,29 @@ def submit(
     name: str = Form(...),
     department: str = Form(...),
     age: int = Form(...),
-    future: str = Form(...),
-    emotion: str = Form(...),
+
+    q1_future_state: str = Form(...),
+    q2_emotion_impact: str = Form(...),
+    q3_obstacles: list[str] = Form(...),  # 多選
+    q4_solution: str = Form(...),
+    q5_help_channel: str = Form(...),
+    q6_avoid: str = Form(...),
+    q7_prefer: str = Form(...),
 ):
     db = SessionLocal()
     try:
-        row = Survey(
+        row = SurveyV2(
             name=name,
             department=department,
             age=age,
-            future=future,
-            emotion=emotion,
-            time=now_tw(),  # ✅ 時間用台灣時區
+            q1_future_state=q1_future_state,
+            q2_emotion_impact=q2_emotion_impact,
+            q3_obstacles=",".join(q3_obstacles),
+            q4_solution=q4_solution,
+            q5_help_channel=q5_help_channel,
+            q6_avoid=q6_avoid,
+            q7_prefer=q7_prefer,
+            time=now_tw(),
         )
         db.add(row)
         db.commit()
@@ -77,8 +88,6 @@ def submit(
         db.close()
 
     return RedirectResponse(url="/success", status_code=303)
-
-
 @app.get("/success", response_class=HTMLResponse)
 def success(request: Request):
     return templates.TemplateResponse("success.html", {"request": request})
@@ -88,11 +97,11 @@ def success(request: Request):
 def admin(request: Request):
     db = SessionLocal()
     try:
-        total = db.query(func.count(Survey.id)).scalar() or 0
+        total = db.query(func.count(SurveyV2.id)).scalar() or 0
 
         rows = (
-            db.query(Survey)
-            .order_by(Survey.id.desc())
+            db.query(SurveyV2)
+            .order_by(SurveyV2.id.desc())
             .limit(20)
             .all()
         )
