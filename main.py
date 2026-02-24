@@ -107,9 +107,9 @@ def admin(request: Request):
         )
 
         dept_stats = (
-            db.query(Survey.department, func.count(Survey.id))
-            .group_by(Survey.department)
-            .order_by(func.count(Survey.id).desc())
+            db.query(SurveyV2.department, func.count(SurveyV2.id))
+            .group_by(SurveyV2.department)
+            .order_by(func.count(SurveyV2.id).desc())
             .all()
         )
         # 轉成 template 好用的格式
